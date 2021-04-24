@@ -1,0 +1,48 @@
+<html>
+  <head>
+    <script src="https://www.gstatic.com/firebasejs/ui/4.7.1/firebase-ui-auth.js"></script>
+    <link
+      type="text/css"
+      rel="stylesheet"
+      href="https://www.gstatic.com/firebasejs/ui/4.7.1/firebase-ui-auth.css"
+    />
+    <!-- The core Firebase JS SDK is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-app.js"></script>
+
+    <!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.1.1/firebase-auth.js"></script>
+
+    <script src="/__/firebase/init.js"></script>
+    <script>
+    //   fetch('/__/firebase/init.json').then(async response => {
+        //   await firebase.initializeApp(await response.json());
+      // FirebaseUI config.
+      var uiConfig = {
+        signInSuccessUrl: "index.html",
+        signInOptions: [{
+                provider: firebase.auth.PhoneAuthProvider.PROVIDER_ID,
+                defaultCountry: "IN",
+                whitelistedCountries: ['+91']
+            }
+        ],
+        tosUrl: "index.html",
+        privacyPolicyUrl: function () {
+          alert("Peekinav thi");
+        },
+      };
+
+      // Initialize the FirebaseUI Widget using Firebase.
+      var ui = new firebaseui.auth.AuthUI(firebase.auth());
+      // The start method will wait until the DOM is loaded.
+      ui.start("#firebaseui-auth-container", uiConfig);
+    // });
+    </script>
+  </head>
+  <body>
+    <!-- The surrounding HTML is left untouched by FirebaseUI.
+               Your app may use that space for branding, controls and other customizations.-->
+    <h1>Login to FLow</h1>
+    <div id="firebaseui-auth-container"></div>
+  </body>
+</html>
