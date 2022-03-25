@@ -76,13 +76,10 @@ $("#btn").on("click", handleNewQuestion);
 function handleNewQuestion() {
   var newQuestion = $("#inputquestion").val().trim();
 
-  if (newQuestion.includes("<script")) {
-    return false;
-  }
-
   if (newQuestion.length === 0) {
     return false;
   }
+  newQuestion=newQuestion.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   $("#inputquestion").val("");
   // console.log(newQuestion);
   var threshold = 5;
@@ -91,6 +88,11 @@ function handleNewQuestion() {
     var question;
     if (myLocalQuestionsObject["questions"].hasOwnProperty(key)) {
       question = myLocalQuestionsObject["questions"][key];
+      try{ question.question.toLowerCase() 
+      }catch(err){
+        console.log("LevDistance")
+        continue;
+      }
     } else {
       continue;
     }
@@ -104,6 +106,7 @@ function handleNewQuestion() {
   } else {
     var newQuestionObj = {
       question: newQuestion,
+      uid : firebase.auth().currentUser.uid
     };
     var key = firebase.database().ref("ffe_questions").push(newQuestionObj);
   }
@@ -111,14 +114,13 @@ function handleNewQuestion() {
 
 // handle new comment
 function handleNewComment(questionKey, newComment) {
-  if (newComment.includes("<script")) {
-    return false;
-  }
-
+  
+  newComment=newComment.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   var newCommentObj = {
     comment: newComment,
     upvote: 0,
     downvote: 0,
+    uid: firebase.auth().currentUser.uid 
   };
 
   return firebase
@@ -132,6 +134,7 @@ function handleNewComment(questionKey, newComment) {
 // filter event handler
 document.getElementById("filter").addEventListener("input", (event) => {
   curFilterInput = event.target.value;
+  curFilterInput=curFilterInput.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/"/g, "&quot;")
   if (curFilterInput == "") filterInputGiven = false;
   else filterInputGiven = true;
   // var filterInputGiven = curFilterInput != "" ? 1 : 0;
@@ -150,15 +153,21 @@ function filter(questionsObject) {
   for (questionKey in questionsObject) {
     var question;
     if (questionsObject.hasOwnProperty(questionKey)) {
-      question = questionsObject[questionKey];
+        question = questionsObject[questionKey];
+        try{
+        question.question.toLowerCase().indexOf(curFilterInput.toLowerCase());
+        } catch(err){
+            console.log(questionKey)
+            console.log("HEYYY!!!!!!! Poindhi!!!!!")
+            continue;
+        }
       $("#" + questionKey).hide();
     } else {
       continue;
     }
     //not checking comments if question is matched, else checking options
     if (
-      question.question.toLowerCase().indexOf(curFilterInput.toLowerCase()) !=
-      -1
+      question.question.toLowerCase().indexOf(curFilterInput.toLowerCase()) !=-1
     ) {
       $("#" + questionKey).show();
       continue;
@@ -171,6 +180,10 @@ function filter(questionsObject) {
         comment = question["commentsArray"][commentKey];
       } else {
         continue;
+      }
+      if(!comment["comment"]){
+          console.log("Comment Poindhi")
+          continue;
       }
       if (
         comment["comment"]
@@ -188,14 +201,28 @@ function updateVote(questionKey, commentKey, add) {
   if (myLocalQuestionsObject["questions"] == {}) return false;
   if (!myLocalQuestionsObject["questions"].hasOwnProperty(questionKey))
     return false;
-  if (add == 1)
-    myLocalQuestionsObject["questions"][questionKey]["commentsArray"][
-      commentKey
-    ]["upvote"] += 1;
-  else
-    myLocalQuestionsObject["questions"][questionKey]["commentsArray"][
-      commentKey
-    ]["downvote"] += 1;
+
+    if (add == 1)
+      {
+          try{
+          myLocalQuestionsObject["questions"][questionKey]["commentsArray"][
+            commentKey
+          ]["upvote"] += 1;
+          } catch(e){
+            console.log("Upvote Failed "+questionKey+commentKey)
+            return ;
+          }
+    }
+    else{
+          try{
+          myLocalQuestionsObject["questions"][questionKey]["commentsArray"][
+            commentKey
+          ]["downvote"] += 1;
+          } catch(e){
+            console.log("downvote failed"+questionKey+commentKey)
+            return ;
+          }
+    }
   var updates = {};
   // updates["/users/"+firebase.auth().currentUser.uid] = {"count": };
   updates["/ffe_questions/" + questionKey] =
@@ -233,8 +260,71 @@ function updateQuestionDOM(questionKey, rebuild = false) {
 
   var $inputButton = document.createElement("button");
   $inputButton.innerText = "Submit ans";
-  $inputButton.setAttribute("class", "btnx");
+  $inputButton.setAttribute("class", "btn-primary");
 
+  var $fileinput = document.createElement("input")
+  
+  $fileinput.setAttribute("type","file")
+  $fileinput.setAttribute("class","fileinputbtn")
+  $fileinput.innerHTML="Yo man!!"
+  
+  var $progressbar = document.createElement("progress")
+
+  $progressbar.setAttribute("class","uploadProgressBar")
+  $progressbar.setAttribute("value","0")
+  $progressbar.setAttribute("max",100)
+
+
+  $fileinput.addEventListener("change",(e)=>
+  {
+    console.log("Hi")
+    var file = e.target.files[0];
+    filename= e.target.files[0].name
+filename.split('.')
+splittedname=filename.split('.')
+splittedname.join('.')
+filename=splittedname.slice(0,splittedname.length-1).join('.')+"  "+(new Date()).toLocaleTimeString()+"  ."+splittedname[splittedname.length-1]
+    var file=e.target.files[0];
+    console.log(filename)
+    //Create storage ref
+    
+    var storageRef = firebase.storage().ref().child(filename)
+    if(e.target.files[0].size<25000000 &&  ((filename.endsWith(".heic"))|| filename.endsWith(".png") || filename.endsWith(".jpg") 
+    || filename.endsWith(".jpeg") || filename.endsWith(".gif") || filename.endsWith(".pdf") || filename.endsWith(".docx")) || filename.endsWith(".jfif")){
+    console.log(storageRef)
+    var task = storageRef.put(file)
+    console.log()
+    task.on('state_changed',
+        function progress(snapshot) {
+            var percentage = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            $progressbar.value = percentage;
+        },
+        function error(err) {
+
+        },
+        function complete() {
+            console.log("Upload Complete")
+            $progressbar.value = 0;
+            // console.log(path)                                        
+            var storageRef = firebase.storage().ref()
+            starsRef=storageRef.child(filename);
+            starsRef.getDownloadURL()
+            .then((url) => {
+                firebase.database().ref("ffe_questions/" + questionKey + "/commentsArray").push({
+                    comment  : '<a href="'+url+'" '+'target=\" _blank\">'+filename+'</a>',
+                    upvote : 0,
+                    downvote : 0,
+                    uid : firebase.auth().currentUser.uid
+                });   
+            })
+            // alert("upload complete!")
+        })
+    }
+    else{
+        alert("Should be of format heic , jpg , jpeg, gif , png , heic ,  pdf , docx and must be below 25mb")
+    }
+  })
+  
   $inputButton.addEventListener("click", (e) => {
     var newAns = $inputnewAnswer.value.trim();
     if (newAns.length === 0) return false;
@@ -248,14 +338,17 @@ function updateQuestionDOM(questionKey, rebuild = false) {
       handleNewComment(questionKey, newAns);
     }
   });
-
+  
   $commentSection.appendChild($inputnewAnswer);
   $commentSection.appendChild($inputButton);
-
+  $commentSection.appendChild($fileinput)
+  $commentSection.appendChild($progressbar)
+  
   if (!questionObject["commentsArray"]) {
     $singleQuestion.innerHTML = "";
     $singleQuestion.appendChild($theQuestion);
     $singleQuestion.appendChild($commentSection);
+    $singleQuestion.setAttribute("style",darkmode ? "background-color: #2B2A2A;border : 3px solid white": "")
     if (!rebuild)
       document.getElementById("livesection").appendChild($singleQuestion);
     return;
@@ -268,16 +361,18 @@ function updateQuestionDOM(questionKey, rebuild = false) {
     else continue;
 
     var $singleComment = document.createElement("li");
-
+    $singleComment.setAttribute("class","comment")
     var $theComment = document.createElement("span");
+    $theComment.setAttribute("style",darkmode ? "color:white": "")
     $theComment.innerHTML = comment["comment"];
     $theComment.setAttribute("class", "combg");
 
     $votes = document.createElement("span");
+    $votes.setAttribute("style",darkmode ? "color:white": "")
     $votes.innerHTML = "Votes: " + (comment.upvote - comment.downvote);
 
     var $ubtn = document.createElement("button");
-    $ubtn.setAttribute("class", "btnx");
+    $ubtn.setAttribute("class", "btn-success");
     $ubtn.setAttribute("id", questionKey + "$$" + commentKey);
     $ubtn.innerHTML = "up";
     $ubtn.addEventListener(
@@ -291,7 +386,7 @@ function updateQuestionDOM(questionKey, rebuild = false) {
 
     var $dbtn = document.createElement("button");
     $dbtn.innerHTML = "down";
-    $dbtn.setAttribute("class", "btnx");
+    $dbtn.setAttribute("class", "btn-danger");
     $dbtn.setAttribute("id", questionKey + "$$" + commentKey);
     $dbtn.addEventListener(
       "click",
@@ -470,13 +565,71 @@ document.onpaste = async function (event) {
         function (error) {},
         function () {
           uploadTask.snapshot.ref.getDownloadURL().then(function (downloadURL) {
-            var question = "<img src='" + downloadURL + "'/>";
+            var question = {question: "<img src='" + downloadURL + "'/>",uid: firebase.auth().currentUser.uid};
+            var key = firebase.database().ref("ffe_questions").push(question)
             $("#imgstatus").val("Uploaded! (Ready.)");
-            $("#inputquestion").val(question);
-            $("#btn").click();
           });
         }
       );
     }
   }
 };
+let copyscript='var arr=document.getElementsByClassName("qtext");var str="";for(var i=0;i<arr.length;++i){str+=arr[i].innerText+"@^&&^@"}copy(str);' 
+
+function copyJsToClipboard(){
+
+    const el = document.createElement('textarea');
+    el.value = copyscript;
+    el.setAttribute('readonly', '');
+    el.style.position = 'absolute';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+
+let darkmode=false
+function toggle(){
+    if(!darkmode){
+          darkmode=true
+        setTheme()
+    document.getElementById("darkLightToggle").innerHTML="Mode : Dark Mode 🌚(under Development)"
+  }
+  else{
+    darkmode=false
+    setTheme()
+
+    document.getElementById("darkLightToggle").innerHTML="Mode : Light Mode ☀"
+  }
+}
+function setTheme(){  
+    if(darkmode){ 
+        document.body.setAttribute("style","background-color:#232222")
+        let a=document.getElementsByClassName("bgff")
+        for (let i=0;i<a.length;i++){ 
+            a[i].setAttribute("style","background-color: #2B2A2A;border : 3px solid white")
+        }
+        textelements=["h1","h2","h3","h4","h5","h6","li","l1","b","span"]
+        for (let i=0;i<textelements.length;i++){
+        let b=document.getElementsByTagName(textelements[i])
+        for(let j=0;j<b.length;j++){
+            b[j].setAttribute("style","color:white")
+        }
+        }
+    }
+    if( darkmode==false){
+        document.body.setAttribute("style","")
+        let a=document.getElementsByClassName("bgff")
+        for (let i=0;i<a.length;i++){ 
+            a[i].setAttribute("style","")
+        }
+        textelements=["h1","h2","h3","h4","h5","h6","li","l1","b","span"]
+        for (let i=0;i<textelements.length;i++){
+          let b=document.getElementsByTagName(textelements[i])
+          for(let j=0;j<b.length;j++){
+            b[j].setAttribute("style","")
+          }
+        }
+    }
+}
