@@ -434,7 +434,7 @@ async function fetchAll() {
   //   delete myLocalQuestionsObject.
   // });
 }
-
+//Array for allowing only certain phone number (hashed for added security). Not used since website repurposed for public access
 var FFZZ = [
   527600736,
   -589989265,
@@ -529,7 +529,7 @@ firebase.auth().onAuthStateChanged(
             a = (a << 5) - a + b.charCodeAt(0);
             return a & a;
           }, 0)
-        )
+        ) || true /*added true to facilitate public access*/
       ) {
         $("#main").show();
         fetchAll();
